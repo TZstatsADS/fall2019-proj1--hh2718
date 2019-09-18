@@ -5,7 +5,6 @@ output:
     df_print: paged
 ---
 
-![](/Users/huhan/OneDrive/Desktop/Generation.jpg){width=70%}
 
 ## Introduction
 #### In this text mining project, I would like to discover whether there is preference between different generations about words on lyrics.
