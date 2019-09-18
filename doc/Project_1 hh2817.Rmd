@@ -1,0 +1,465 @@
+---
+title: "What Songs Tell Us about Generation Preference on Lyrics?"
+output: html_notebook
+---
+
+
+## Introduction
+#### In this text mining project, I would like to discover whether there is preference between different generations about words on lyrics.
++ Love, time, baby, ill, day are the most common words, regardless of Region, Time and Genre
++ Looked at the pattern of words usage besides those five common words
++ Focused on Two Generations: Elder Generation (Before 21 Century) and Young Generation (After 21 Century)
+```{r load libraries, warning=FALSE, message=FALSE,echo=FALSE}
+packages.used=c("tidyverse", "tidytext", "DT", 
+                "scales", "wordcloud2", "gridExtra",
+                "ngram", "syuzhet", "foreign","lubridate", 
+                "dplyr", "ggplot2", "RColorBrewer",
+                "RANN", "tm", "topicmodels","tidyr","NLP",
+                "SnowballC","httr","wordcloud","janeaustenr","data.table")
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+
+library(tidyverse)
+library(tidytext)
+library(DT)
+library(scales)
+library(wordcloud)
+library(wordcloud2)
+library(gridExtra)
+library(ngram)
+library(foreign)                       
+library(syuzhet)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(RColorBrewer)
+library(tidyr)
+library(NLP)
+library(topicmodels)
+library(SnowballC)
+library(httr)
+library(janeaustenr)
+library(data.table)
+```
+
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# load lyrics data
+load('~/output/processedwo_lyrics.RData') 
+```
+
+
+
+```{r, warning=FALSE, message=FALSE,echo=FALSE}
+#### Cleaning the data by grouping and adding more variables
+dt_lyrics$Era<-NA
+dt_lyrics[which(dt_lyrics$year<=1979),]$Era<-'1970s'
+dt_lyrics[which((dt_lyrics$year>=1980) & (dt_lyrics$year<1990)),]$Era<-'1980s'
+dt_lyrics[which((dt_lyrics$year>=1990) & (dt_lyrics$year<2000)),]$Era<-'1990s'
+dt_lyrics[which((dt_lyrics$year>=2000) & (dt_lyrics$year<2010)),]$Era<-'2000s'
+dt_lyrics[which(dt_lyrics$year>=2010),]$Era<-'2010s'
+
+dt_lyrics$after2000<-"N"
+dt_lyrics[which(dt_lyrics$Era=="2000s"),]$after2000<-'Y'
+dt_lyrics[which(dt_lyrics$Era=="2010s"),]$after2000<-'Y'
+
+dt_lyrics<-dt_lyrics %>%
+mutate(count = sapply(dt_lyrics$stemmedwords, wordcount))%>%
+filter(!genre %in% c("Not Available","Other")) %>%
+filter(!year %in% c("112", "702")) 
+```
+
+
+## Question 1 Is there any difference on word usage in the lyrics of our parents and ourselves?
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# Wordcloud for commom topics
+bag_of_words<- dt_lyrics%>%
+  unnest_tokens(word, stemmedwords)
+
+word_count <- bag_of_words %>%
+  count(word, sort = TRUE)
+```
+
+
+### Wordcloud before distinguishing between generations
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+wordcloud(word_count$word,word_count$n ,
+          scale=c(3,0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.5,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(7,"Greens"))
+```
+
+
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# Wordcloud for Era (after 2000s)
+Era.data.after <- dt_lyrics[which((dt_lyrics$Era=='2010s')| (dt_lyrics$Era=="2000s")),]
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+bag_of_words_after <-  Era.data.after %>%
+  unnest_tokens(word, stemmedwords)
+
+word_count_after <- bag_of_words_after %>%
+  count(word, sort = TRUE)
+```
+
+
+### Wordcloud of Young Generation
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+wordcloud(word_count_after$word,word_count_after$n ,
+          scale=c(3,0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.5,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Blues"))
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# Wordcloud for lyrics before 2000s
+Era.data.before <- dt_lyrics[which((dt_lyrics$Era=='1970s') | (dt_lyrics$Era=="1980s")| (dt_lyrics$Era=="1990s")),]
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+bag_of_words_before <-  Era.data.before %>%
+  unnest_tokens(word, stemmedwords)
+
+word_count_before <- bag_of_words_before %>%
+  count(word, sort = TRUE)
+```
+
+
+### Wordcloud of Elder Generation
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+wordcloud(word_count_before$word,word_count_before$n ,
+          scale=c(3,0.1),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.5,
+          use.r.layout=T,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Oranges"))
+```
+
+#### Key Findings:
++ Elder Generation likes talking about **home** more than **world**
++ Young Generation likes talking about **world** most and they love **home** as well they put it on the fifth place
++ Elder generation likes talking about **Lord**, however, this word doesn't appear on young generation's top 15 words list
++ This might be an evidence that elder generations talk religional belif and life than young generations
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+ word_count_before[1:15,] %>%
+      mutate(word = reorder(word, n)) %>%
+      ggplot(aes(word, n)) +
+      geom_col(color='yellow',fill='orange') +
+      labs(title = " Top 15 Words for Elder Gerenation Lyrics Before 2000s")+
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+ word_count_after[1:15,] %>%
+      mutate(word = reorder(word, n)) %>%
+      ggplot(aes(word, n)) +
+      geom_col(color='skyblue',fill='steelblue') +
+      labs(title = " Top 15 Words for Young Gerenation")+
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+```
+
+# Question 2: Do we have the different level of emontion between generations?
+
+#### Now let's go deeper with sentimental analysis. By 10 different sentiments of NRC lexicon, I got the proportion of each sentiment per generation. The distributions of sentiments between the two groups have a similar pattern. But the lyrics of young generations tend to be more negative than positive, whereas those of elder generations are slightly more likely to be positive than negative. In addtion, young generations seem to have more fears than elder generations.
+
+#### Sentiment Analysis with nrc Lexicon
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+nrc_after<-get_nrc_sentiment(Era.data.after$stemmedwords)
+freq_nrc_after<-unname(colSums(nrc_after))
+nrc_class<-c('anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive')
+data_nrc_after<-data.frame(name=nrc_class,freq=freq_nrc_after)
+data_nrc_after$prop<-unname(freq_nrc_after)/sum(unname(freq_nrc_after))
+data_nrc_after<-data_nrc_after[order(-data_nrc_after$freq),]
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+nrc_before<-get_nrc_sentiment(Era.data.before$stemmedwords)
+freq_nrc_before<-unname(colSums(nrc_before))
+nrc_class<-c('anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust', 'negative', 'positive')
+data_nrc_before<-data.frame(name=nrc_class,freq=freq_nrc_before)
+data_nrc_before$prop<-unname(freq_nrc_before)/sum(unname(freq_nrc_before))
+data_nrc_before<-data_nrc_before[order(-data_nrc_before$freq),]
+```
+
+#### Proportional Comparison for Each Genreration
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+ ggplot(data=data_nrc_before)+
+      geom_col(aes(x=reorder(name, prop),y=prop),color="#D16103",fill='#FFDB6D') +
+      labs(title = " Emontional Class of Lyrics Before 2000s")+
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+
+ggplot(data=data_nrc_after)+
+      geom_col(aes(x=reorder(name, prop),y=prop),color='skyblue',fill='steelblue') +
+      labs(title = " Emontional Class of Lyrics After 2000s")+
+      xlab(NULL) +
+      ylab("Word Frequency")+
+      coord_flip()
+
+```
+
+#### I also got the sentiment score by afinn lexicon and the distributions of the score are like below. young generations have a broader range of sentiment levels and lower median score. The histograms for young and elder generations have a somewhat similar distribution. However, young generations have more time of feeling negative on thier lyrics while senior generations have more time of feeling postive on thier lyrics.
+
+#### Sentiment Analysis with Afinn Lexicon
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+#Calculate Sentimental Score by the method of Syuzhet
+syz_vec<-get_sentiment(dt_lyrics$stemmedwords,method = "syuzhet")
+dt_lyrics$syuzhet_score <- syz_vec
+
+afinn_vec<-get_sentiment(dt_lyrics$stemmedwords,method = "afinn")
+dt_lyrics$afinn_score <- afinn_vec
+```
+
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+ggplot(dt_lyrics, aes(x=after2000, y=afinn_score,color=after2000)) + 
+  geom_boxplot(notch=TRUE)+
+  labs(title = " Sentiment Analysis with Afinn Lexicon")
+
+elder_gen<-summary(dt_lyrics[which(dt_lyrics$after2000=="N"),]$afinn_score)
+young_gen<-summary(dt_lyrics[which(dt_lyrics$after2000=="Y"),]$afinn_score)
+rbind(elder_gen,young_gen)
+```
+
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+ggplot(dt_lyrics, aes(x=afinn_score,color=after2000))+
+  geom_histogram(aes(y=..density..),color="black", fill="white")+
+  facet_grid(after2000 ~ .)+
+  labs(title = " The Distribution of Sentiment Score for Each Generation")
+```
+
+
+# Question 3: Can we tell which emotions are possibly from which potential sources based on lyrics for each generation group?
+
+#### I got several words from postive and negative sentiments assigned by Bing lexison for both generations
+#### Sentiment Analysis for Bing Lexison
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+lyrics_data_before<-Era.data.before%>%
+  unnest_tokens(output=word,input=stemmedwords)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+positive <- get_sentiments("bing") %>%
+  filter(sentiment == "positive")
+
+lyrics_data_before%>%
+  semi_join(positive) %>%
+  count(word, sort = TRUE)
+```
+
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+bing <- get_sentiments("bing")
+bing_word_counts <- lyrics_data_before %>%
+  inner_join(bing) %>%
+  count(word, sentiment, sort = TRUE)
+
+bing_word_counts %>%
+  filter(n > 25) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Contribution to Sentiment for Elder Generation")
+```
+
+#### Key Findings:
++ **Heaven** is the most frequent word they used when they feel positive.
++ **Cry ** is the most common word to be used when they expressed negative feelings
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+library(reshape2)
+
+lyrics_data_before %>%
+  inner_join(bing) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#F8766D", "#00BFC4"),
+                   max.words = 100)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+lyrics_data_after<-Era.data.after%>%
+  unnest_tokens(output=word,input=stemmedwords)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+positive <- get_sentiments("bing") %>%
+  filter(sentiment == "positive")
+
+lyrics_data_after%>%
+  semi_join(positive) %>%
+  count(word, sort = TRUE)
+```
+
+#### By contrast, young generations have a different source from postive and negative sentiments.
++  **Free** is the most frequent word they used when they feel positive
++ **Fall ** is the most common word to be used when they expressed negative feelings
++ Young generations valued freedoom heavier than their parent generations
++ Young generations regarded **die**,**fall** a really negative word 
+```{r}
+bing <- get_sentiments("bing")
+bing_word_counts <- lyrics_data_after %>%
+  inner_join(bing) %>%
+  count(word, sentiment, sort = TRUE)
+
+
+bing_word_counts %>%
+  filter(n > 350) %>%
+  mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col() +
+  coord_flip() +
+  labs(title = "Contribution to Sentiments before 2000s")
+```
+
+```{r,warning=F}
+library(reshape2)
+
+lyrics_data_after %>%
+  inner_join(bing) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#F8766D", "#00BFC4"),
+                   max.words = 100)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+scoreSentiment = function(tab)
+{
+ tab$syuzhet = get_sentiment(tab$stemmedwords, method="syuzhet")
+ tab$bing = get_sentiment(tab$stemmedwords, method="bing")
+ tab$afinn = get_sentiment(tab$stemmedwords, method="afinn")
+ tab$nrc = get_sentiment(tab$stemmedwords, method="nrc")
+ emotions = get_nrc_sentiment(tab$stemmedwords)
+ n = names(emotions)
+ for (nn in n) tab[, nn] = emotions[nn]
+ return(tab)
+}
+
+# get the sentiment scores for the dataset before 2000s
+Era.data.before = scoreSentiment(Era.data.before)
+```
+
+#### I further broke down sentiment groups to several refined emotional groups such as anticipation,joy anger,disgust,sadness,surprise,trust and fear.
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# emotion analysis: anger, anticipation, disgust, fear, joy, sadness, surprise, trust
+# put everything in a single vector
+all = c(
+paste(Era.data.before$stemmedwords[Era.data.before$anger > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$anticipation > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$disgust > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$fear > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$joy > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$sadness > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$surprise > 0], collapse=" "),
+paste(Era.data.before$stemmedwords[Era.data.before$trust > 0], collapse=" ")
+)
+
+# create corpus
+corpus = Corpus(VectorSource(all))
+#
+# create term-document matrix
+tdm = TermDocumentMatrix(corpus)
+#
+# convert as matrix
+tdm = as.matrix(tdm)
+#
+# add column names
+colnames(tdm) = c('anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust')
+#
+# Plot comparison wordcloud
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, 'Emotion Comparison Word Cloud of Elder Generation')
+comparison.cloud(tdm, random.order=FALSE,
+colors = c("brown1", "green", "palevioletred2", "#6600CC", "orange", "skyblue", "#F8766D", "#00BFC4"),
+title.size=1.5, max.words=250)
+```
+
+#### Key findings for Elder Generations:
++ **fears** are from tax, fire, somebady knocking the door in late night
++ **surprise** are from home and world
++ Cry,loose can cause **sadness**
++ Sleep, easy stuff make people **joy**
++ Rammer, wounds, hurt make people **anger**
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# get the sentiment scores for the dataset after 2000s
+Era.data.after = scoreSentiment(Era.data.after)
+```
+
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
+# emotion analysis: anger, anticipation, disgust, fear, joy, sadness, surprise, trust
+# put everything in a single vector
+all = c(
+paste(Era.data.after$stemmedwords[Era.data.after$anger > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$anticipation > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$disgust > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$fear > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$joy > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$sadness > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$surprise > 0], collapse=" "),
+paste(Era.data.after$stemmedwords[Era.data.after$trust > 0], collapse=" ")
+)
+
+
+# create corpus
+corpus = Corpus(VectorSource(all))
+#
+# create term-document matrix
+tdm = TermDocumentMatrix(corpus)
+#
+# convert as matrix
+tdm = as.matrix(tdm)
+#
+# add column names
+colnames(tdm) = c('anger', 'anticipation', 'disgust', 'fear', 'joy', 'sadness', 'surprise', 'trust')
+#
+# Plot comparison wordcloud
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, 'Emotion Comparison Word Cloud of Young Generation')
+comparison.cloud(tdm, random.order=FALSE,
+colors = c("brown1", "green", "palevioletred2", "#6600CC", "orange", "skyblue", "#F8766D", "#00BFC4"),
+title.size=1.5, max.words=250,rot.per=0.4)
+```
+#### Key findings for Young Generations:
++ **fears** are no longer from tax but now from war and death
++ **surprise** are no longer from home and world, but from kiss and dream and hope.
++ Cry can cause **sadness** for young generaitons, besides, shadows, dark and fall are unhapppy words from their perspectives
++ Sleep, easy stuff no longer make young people **joy**, to be joy, they need to sing a song and stay with a friends.
+
+
+
+#### In conclusion, we can conclude that there is a clear tendency of the words usage between generations and so are song lyrics. As what we have sang is what we think, what we want and what we dream of, lyrics tells us what society wants to hear. 
