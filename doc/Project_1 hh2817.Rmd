@@ -1,8 +1,11 @@
 ---
 title: "What Songs Tell Us about Generation Preference on Lyrics?"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
+![](/Users/huhan/OneDrive/Desktop/Generation.jpg){width=70%}
 
 ## Introduction
 #### In this text mining project, I would like to discover whether there is preference between different generations about words on lyrics.
@@ -270,7 +273,7 @@ lyrics_data_before<-Era.data.before%>%
 positive <- get_sentiments("bing") %>%
   filter(sentiment == "positive")
 
-lyrics_data_before%>%
+lyrics_count_before<-lyrics_data_before%>%
   semi_join(positive) %>%
   count(word, sort = TRUE)
 ```
@@ -281,7 +284,9 @@ bing <- get_sentiments("bing")
 bing_word_counts <- lyrics_data_before %>%
   inner_join(bing) %>%
   count(word, sentiment, sort = TRUE)
+```
 
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
 bing_word_counts %>%
   filter(n > 25) %>%
   mutate(n = ifelse(sentiment == "negative", -n, n)) %>%
@@ -295,6 +300,7 @@ bing_word_counts %>%
 #### Key Findings:
 + **Heaven** is the most frequent word they used when they feel positive.
 + **Cry ** is the most common word to be used when they expressed negative feelings
+
 ```{r,warning=FALSE, message=FALSE,echo=FALSE}
 library(reshape2)
 
@@ -315,7 +321,7 @@ lyrics_data_after<-Era.data.after%>%
 positive <- get_sentiments("bing") %>%
   filter(sentiment == "positive")
 
-lyrics_data_after%>%
+lyrics_count_after<-lyrics_data_after%>%
   semi_join(positive) %>%
   count(word, sort = TRUE)
 ```
@@ -325,7 +331,7 @@ lyrics_data_after%>%
 + **Fall ** is the most common word to be used when they expressed negative feelings
 + Young generations valued freedoom heavier than their parent generations
 + Young generations regarded **die**,**fall** a really negative word 
-```{r}
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
 bing <- get_sentiments("bing")
 bing_word_counts <- lyrics_data_after %>%
   inner_join(bing) %>%
@@ -342,7 +348,7 @@ bing_word_counts %>%
   labs(title = "Contribution to Sentiments before 2000s")
 ```
 
-```{r,warning=F}
+```{r,warning=FALSE, message=FALSE,echo=FALSE}
 library(reshape2)
 
 lyrics_data_after %>%
@@ -454,6 +460,7 @@ comparison.cloud(tdm, random.order=FALSE,
 colors = c("brown1", "green", "palevioletred2", "#6600CC", "orange", "skyblue", "#F8766D", "#00BFC4"),
 title.size=1.5, max.words=250,rot.per=0.4)
 ```
+
 #### Key findings for Young Generations:
 + **fears** are no longer from tax but now from war and death
 + **surprise** are no longer from home and world, but from kiss and dream and hope.
